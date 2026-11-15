@@ -1,0 +1,7 @@
+build/
+package/
+*.xcodeproj/
+.DS_Store
+*.ipa
+*.apk
+*.obb
