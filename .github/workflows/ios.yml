@@ -31,7 +31,7 @@ jobs:
           mkdir -p package/Payload
           cp -R build/Build/Products/Release-iphoneos/SnowRainNative.app package/Payload/
           test -x package/Payload/SnowRainNative.app/SnowRainNative
-          lipo -verify_arch arm64 package/Payload/SnowRainNative.app/SnowRainNative
+          lipo package/Payload/SnowRainNative.app/SnowRainNative -verify_arch arm64
           test ! -e package/Payload/SnowRainNative.app/opening.json
           cd package
           /usr/bin/zip -qry SnowRainNative-unsigned.ipa Payload
