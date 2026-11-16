@@ -98,11 +98,7 @@ def rgba_sub_row(row):
     return converted
 
 
-def standard_png(image):
-    chunks = list(png_chunks(image))
-    if not any(kind == b"CgBI" for kind, _ in chunks):
-        return image
-
+def cgbi_pixels(chunks):
     header = next((payload for kind, payload in chunks if kind == b"IHDR"), b"")
     if len(header) != 13:
         raise ValueError("Missing or malformed CgBI IHDR chunk.")
@@ -121,9 +117,18 @@ def standard_png(image):
     pixels = decompressor.decompress(compressed, expected_size + 1)
     if len(pixels) != expected_size or not decompressor.eof or decompressor.unused_data:
         raise ValueError("Invalid CgBI pixel data.")
+    return width, height, pixels
 
+
+def standard_png(image):
+    chunks = list(png_chunks(image))
+    if not any(kind == b"CgBI" for kind, _ in chunks):
+        return image
+
+    width, _, pixels = cgbi_pixels(chunks)
+    row_size = width * 4 + 1
     rows = bytearray(pixels)
-    for offset in range(0, expected_size, row_size):
+    for offset in range(0, len(pixels), row_size):
         if pixels[offset] != 1:
             raise ValueError("Expected the Sub filter used by SnowRain 1.4.")
         rows[offset + 1:offset + row_size] = rgba_sub_row(pixels[offset + 1:offset + row_size])
@@ -140,6 +145,26 @@ def standard_png(image):
             wrote_pixels = True
         standard.extend(png_chunk(kind, payload))
     return bytes(standard)
+
+
+def sprite_horizontal_bounds(image):
+    """Return the left and exclusive right visible edges of an original sprite."""
+    chunks = list(png_chunks(image))
+    if not any(kind == b"CgBI" for kind, _ in chunks):
+        raise ValueError("Expected a SnowRain CgBI sprite.")
+    width, _, pixels = cgbi_pixels(chunks)
+    row_size = width * 4 + 1
+    left, right = width, 0
+    for row in range(0, len(pixels), row_size):
+        if pixels[row] != 1:
+            raise ValueError("Expected the Sub filter used by SnowRain 1.4.")
+        alpha = 0
+        for x, component in enumerate(pixels[row + 4:row + row_size:4]):
+            alpha = (alpha + component) & 255
+            if alpha != 0:
+                left = min(left, x)
+                right = max(right, x + 1)
+    return (left, right) if left < right else (0, width)
 
 
 def pack_resources(ipa, destination, program):

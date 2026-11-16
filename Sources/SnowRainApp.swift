@@ -159,7 +159,7 @@ private struct GameView: View {
     }
 
     private func playView(library: GameLibrary, beat: StoryProgram.Beat, size: CGSize) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 0) {
             HStack {
                 Button { beatID = nil } label: { Label("타이틀", systemImage: "chevron.left") }
                 Spacer()
@@ -169,6 +169,7 @@ private struct GameView: View {
                 soundButton
             }
             .padding(.horizontal, 4)
+            .padding(.bottom, 12)
 
             GeometryReader { stage in
                 let width = CGFloat(library.package.program.canvasWidth ?? 360)
@@ -177,8 +178,11 @@ private struct GameView: View {
                 ZStack {
                     Color.black
                     if let background = library.image(beat.background) {
-                        Image(uiImage: background).resizable().scaledToFit()
-                            .frame(maxHeight: .infinity, alignment: .top)
+                        let imageHeight = width * background.size.height / background.size.width
+                        Image(uiImage: background)
+                            .resizable()
+                            .frame(width: width * scale, height: imageHeight * scale)
+                            .position(x: width * scale / 2, y: imageHeight * scale / 2)
                     }
                     ForEach(Array((beat.layers ?? []).enumerated()), id: \.offset) { _, layer in
                         if let image = library.image(layer: layer) {
@@ -198,7 +202,8 @@ private struct GameView: View {
                 }
                 .frame(width: width * scale, height: height * scale)
                 .clipped()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity,
+                       alignment: beat.text != nil || beat.choices != nil ? .bottom : .center)
                 .accessibilityHidden(true)
             }
             if beat.growthStat != nil || beatID == library.package.program.firstActivity {
@@ -208,6 +213,7 @@ private struct GameView: View {
                     }
                 }
                 .font(.footnote.monospacedDigit())
+                .padding(.vertical, 8)
             }
             if let line = beat.text, !line.isEmpty {
                 ScrollView {
@@ -226,7 +232,15 @@ private struct GameView: View {
                 }
                 .id(beatID)
                 .frame(height: min(164, size.height * 0.26))
-                .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+                .background {
+                    if let panel = library.image("assets/gimage_204.png") {
+                        Image(uiImage: panel)
+                            .resizable()
+                            .accessibilityHidden(true)
+                    } else {
+                        RoundedRectangle(cornerRadius: 12).fill(.white.opacity(0.10))
+                    }
+                }
             }
             if let choices = beat.choices, !choices.isEmpty {
                 ScrollView {
@@ -240,14 +254,16 @@ private struct GameView: View {
                 }
                 .frame(height: min(CGFloat(choices.count * 54), size.height * 0.27))
                 .buttonStyle(.borderedProminent)
+                .padding(.top, 12)
             } else if let next = beat.next, beat.delay == nil, beat.text?.isEmpty == false {
                 Button { go(to: next) } label: {
                     Label("다음", systemImage: "chevron.right")
                         .frame(maxWidth: .infinity, minHeight: 34)
                 }
                 .buttonStyle(.borderedProminent)
+                .padding(.top, 12)
             } else if let end = beat.end {
-                Text(end).font(.footnote)
+                Text(end).font(.footnote).padding(.top, 12)
                 Button("타이틀로") { beatID = nil }.buttonStyle(.bordered)
             }
         }

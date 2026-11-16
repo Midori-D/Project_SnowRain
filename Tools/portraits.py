@@ -83,8 +83,20 @@ def character_layers(compiler, sprites):
         if face_id is not None and expression not in (-1, None):
             parts.append((f"character_face_{face_id}_{expression}.png", x + face[facing], head_y + face[0]))
 
+        center_offset = 0
+        if not paired:
+            # Move the whole portrait. Aligning its face and body separately breaks their seams.
+            visible_parts = [
+                (part_x, compiler.horizontal_bounds(name))
+                for name, part_x, _ in parts[:2] if compiler.exists(name)
+            ]
+            if visible_parts:
+                left = min(part_x + bounds[0] for part_x, bounds in visible_parts)
+                right = max(part_x + bounds[1] for part_x, bounds in visible_parts)
+                center_offset = 180 - (left + right) / 2
+
         for name, part_x, part_y in parts:
-            layer = compiler.layer(name, part_x, part_y)
+            layer = compiler.layer(name, part_x + center_offset, part_y)
             if layer is not None:
                 if flip:
                     layer["mirrored"] = True

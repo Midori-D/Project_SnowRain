@@ -5,15 +5,21 @@ from Tools.portraits import character_layers
 
 
 class PortraitTests(unittest.TestCase):
+    def exists(self, name):
+        return True
+
+    def horizontal_bounds(self, name):
+        return (0, 200) if "Cloth" in name else (0, 104)
+
     def layer(self, name, x, y):
         return {"image": name, "x": x, "y": y}
 
     def test_cloth_base_and_expression_use_the_same_anchor(self):
         actor = SimpleNamespace(actor=0, outfit=3, expression=10)
         self.assertEqual(character_layers(self, {0: actor}), [
-            {"image": "character_0_Cloth_3.png", "x": 70, "y": 134},
-            {"image": "character_bface_1.png", "x": 152, "y": 55},
-            {"image": "character_face_0_10.png", "x": 166, "y": 86},
+            {"image": "character_0_Cloth_3.png", "x": 80, "y": 134},
+            {"image": "character_bface_1.png", "x": 162, "y": 55},
+            {"image": "character_face_0_10.png", "x": 176, "y": 86},
         ])
 
     def test_two_portraits_face_inward_and_keep_their_own_outfits(self):

@@ -10,8 +10,8 @@ import zipfile
 
 from first_day import first_day
 from portraits import character_layers
-from prepare_data import APP_PREFIX
-from scene_script import scene_steps
+from prepare_data import APP_PREFIX, sprite_horizontal_bounds
+from scene_script import rendered_layer, scene_steps
 
 
 # _vFindScriptPos indexes CRLF records. _vTransScript consumes commands
@@ -22,6 +22,8 @@ OPERANDS = {
     22: 2, 23: 1,
 }
 SCENE_KINDS = {14: "cartoon", 15: "illuster", 16: "comic", 17: "miniilluster"}
+# Original dialog content starts at framebuffer height 444 - 92 * 1.5.
+DIALOGUE_STAGE_HEIGHT = 306
 SPEAKERS = (
     "다혜", "미나", "아라", "소희", "윤아", "지훈", "태균", "만복", "최 건",
     "순덕", "승훈", "엄마", "방송", "취객", "의사", "학생", "학생회",
@@ -79,6 +81,7 @@ class OpeningCompiler:
         self.beats = {}
         self.previous = None
         self.dimensions = {}
+        self.sprite_edges = {}
 
     def read(self, name):
         return self.archive.read(APP_PREFIX + name)
@@ -93,6 +96,11 @@ class OpeningCompiler:
             ihdr = header.index(b"IHDR")
             self.dimensions[name] = struct.unpack_from(">II", header, ihdr + 4)
         return self.dimensions[name]
+
+    def horizontal_bounds(self, name):
+        if name not in self.sprite_edges:
+            self.sprite_edges[name] = sprite_horizontal_bounds(self.read(name))
+        return self.sprite_edges[name]
 
     def add(self, key, **beat):
         if key in self.beats:
@@ -110,24 +118,26 @@ class OpeningCompiler:
     def character_layers(self):
         return character_layers(self, self.stage.sprites)
 
-    def snapshot(self):
+    def snapshot(self, dialogue=False):
         stage = self.stage
         scenes = [
-            layer.copy()
+            rendered_layer(kind, layer)
             for kind in stage.scene_order
             for _, layer in sorted(stage.scene_images.get(kind, {}).items())
             if "image" in layer
         ]
         speaker = stage.speaker
+        portraits = self.character_layers()
+        ordinary_dialogue = dialogue and (portraits or (stage.background and not scenes))
         return {
             "background": stage.background,
-            "layers": self.character_layers() + scenes,
+            "layers": portraits + scenes,
             "music": stage.music,
             "effect": stage.effect,
             "date": stage.date,
             "speaker": SPEAKERS[speaker] if stage.speech_mode == 1
                 and speaker is not None and 0 <= speaker < len(SPEAKERS) else None,
-            "sceneHeight": 530 if scenes else 336,
+            "sceneHeight": DIALOGUE_STAGE_HEIGHT if ordinary_dialogue else 530 if scenes else 336,
         }
 
     def animation(self, key, kind, number, segment):
@@ -143,7 +153,7 @@ class OpeningCompiler:
             stage.scene_order.append(kind)
         frames = scene_steps(self.read(f"{kind}txt_{number}"), kind, segment, stage.scene_images)
         other = [
-            layer.copy()
+            rendered_layer(active_kind, layer)
             for active_kind in stage.scene_order if active_kind != kind
             for layer in stage.scene_images[active_kind].values()
             if "image" in layer
@@ -151,8 +161,11 @@ class OpeningCompiler:
         for index, frame in enumerate(frames):
             if frame["delay"] > 0:
                 animation = self.snapshot()
-                animation["layers"] = self.character_layers() + other + frame["layers"]
-                animation["sceneHeight"] = 530
+                portraits = self.character_layers()
+                animation["layers"] = portraits + other + [
+                    rendered_layer(kind, layer) for layer in frame["layers"]
+                ]
+                animation["sceneHeight"] = DIALOGUE_STAGE_HEIGHT if portraits else 530
                 animation["delay"] = frame["delay"]
                 self.add(f"{key}-frame-{index}", **animation)
                 stage.effect = None
@@ -202,7 +215,7 @@ class OpeningCompiler:
                 stage.speaker, = values
             elif opcode == 12:
                 if values.strip():
-                    self.add(key, text=values, **self.snapshot())
+                    self.add(key, text=values, **self.snapshot(dialogue=True))
                     first = first or key
                     stage.effect = None
             elif opcode in SCENE_KINDS:

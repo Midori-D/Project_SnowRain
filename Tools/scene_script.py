@@ -7,6 +7,14 @@ SCENE_IMAGES = {
     "miniilluster": "MiniIlluster",
 }
 
+
+def rendered_layer(kind, layer):
+    """Translate authored scene positions to the iOS texture framebuffer."""
+    if kind not in SCENE_IMAGES:
+        return layer.copy()
+    return {**layer, "x": int(layer["x"] * 1.5), "y": int(layer["y"] * 1.5)}
+
+
 # Widths from the ARMv7 _vTransSceneScript dispatch and operand readers.
 WIDTHS = {0x00: 2, 0x01: 4, 0x02: 4, 0x03: 4, 0x06: 5, 0x07: 8,
           0x08: 3, 0x09: 3, 0xFC: 3, 0xFE: 2, 0xFF: 1}
