@@ -1,29 +1,28 @@
-# SnowRain Native 개발판
+# SnowRain Native
 
-GitHub Actions에서 최신 iOS에 설치할 arm64 IPA를 만드는 개인용 프로젝트입니다.
-현재 구현은 원본 오프닝의 텍스트 표시와 읽던 위치 저장입니다.
-선택지, 호감도, 이벤트, 배경 및 음악 연출, 원본 저장 데이터 호환은 구현되지 않았습니다.
-원작 전체를 플레이할 수 있는 완성판이 아닙니다.
+한국어 iOS판 1.4를 기준으로 복원한 첫 플레이 구간입니다. 원본 타이틀과 일러스트 인트로, 시나리오 1–6, 3월 2일 첫 평일 메뉴, 활동 이후 시나리오 7을 연결합니다. 마지막으로 본 장면은 자동으로 저장됩니다.
 
-## GitHub 빌드
+## 아이폰에 설치하기
 
-1. Project_SnowRain 저장소의 Private 표시를 확인합니다.
-2. 이 폴더의 내용을 저장소 루트에 올립니다. 숨김 폴더인 .github도 포함합니다.
-3. Actions의 Build private iOS IPA에서 Run workflow를 누릅니다.
-4. 성공한 실행의 Artifacts에서 SnowRainNative-unsigned를 다운로드하고 ZIP을 풉니다.
-5. 안의 SnowRainNative-unsigned.ipa를 SideStore로 가져와 서명 및 설치합니다.
+1. 저장소의 **Actions → Build private iOS IPA**에서 성공한 실행을 엽니다.
+2. **Artifacts → SnowRainNative-unsigned**를 내려받고 압축을 풉니다. 안의 IPA를 SideStore로 서명해 설치합니다.
+3. 아래 과정으로 만든 **SnowRain-data.zip**을 아이폰의 파일 앱에 둡니다. 스노우레인 앱에서 **게임 데이터 가져오기**를 눌러 ZIP 자체를 선택합니다.
+4. **새 게임**으로 시작합니다. 활동 메뉴만 먼저 확인하고 싶다면 타이틀에서 **첫 평일 메뉴 테스트**를 선택합니다. 이 기능은 자동 저장 위치를 첫 평일 메뉴로 옮깁니다.
 
-컴파일은 GitHub의 macOS 러너에서 수행합니다. Apple 로그인 정보는 빌드에 필요하지 않습니다.
-빌드에 쓰는 Xcode의 iOS SDK 버전과 앱의 실행 대상 iOS 버전은 다를 수 있습니다.
-현재 설정은 최소 iOS 16이며 iOS 27 실기기에서 검증이 필요합니다.
-macOS 러너 사용량은 GitHub 계정의 Actions 할당량에 포함됩니다.
+## Windows에서 데이터 준비하기
 
-## 데이터와 검증 상태
+Python 3.11 이상과 한국어 iOS판 1.4의 로컬 IPA가 필요합니다. PowerShell에서 저장소 루트를 연 상태로 실행합니다.
 
-Resources/opening.json은 사용자가 제공한 IPA에서 첫 시나리오의 대사 명령을 읽어 만든 개인용 데이터입니다.
-첫 시나리오에서 0x0C로 시작해 NUL로 끝나는 CP949 문자열을 추출했습니다.
-이 추출만으로 시나리오 명령이나 분기 의미를 복원한 것은 아닙니다.
-개발판에는 원본 대사가 포함되므로 사용자가 지정한 비공개 저장소에서 관리합니다.
+```powershell
+$original = 'C:\Users\Midori\Desktop\Midori_Server\Snowrain Project\original\SnowRain 1.4.ipa'
+python Tools/compile_opening.py "$original" --output program.json
+python Tools/prepare_data.py "$original" --program program.json --output SnowRain-data.zip
+```
 
-Windows에서 파일 구성, JSON 및 IPA 패키징 경로를 점검했습니다.
-Xcode 컴파일, GitHub Actions 실행, SideStore 설치와 iPhone 구동은 아직 검증되지 않았습니다.
+게임 데이터는 개인 기기에서 가져옵니다. GitHub Actions는 자체 제작 테스트 자료로 ZIP 읽기, 선택지 연결, 저장 데이터 읽기를 검사하고, 원본 자료가 들어 있지 않은 arm64 IPA를 만듭니다.
+
+## 재현 범위
+
+- 원본 스크립트에서 장면 이미지, 캐릭터, 음악과 효과음, 대사, 날짜를 읽습니다. 장면 전환과 인물 배치, 일부 휴대폰 화면은 원본 명령에서 복원한 근사치입니다.
+- 첫 활동 메뉴에서 성장과 휴식을 실행할 수 있습니다. 성장에 따른 능력치 변화는 원본 확률표를 적용합니다. 인벤토리와 모바일은 첫 화면을 열고 돌아올 수 있습니다. 무작위 이벤트, 소지품 사용, 모바일 조작과 이후 루트 및 엔딩은 후속 단계입니다.
+- 자동 저장은 이 앱의 장면 ID를 사용합니다. 구형 앱의 저장 파일은 이 앱에서 불러올 수 없습니다.

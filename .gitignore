@@ -5,3 +5,6 @@ package/
 *.ipa
 *.apk
 *.obb
+*-data.zip
+program.json
+__pycache__/
