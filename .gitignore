@@ -6,5 +6,8 @@ package/
 *.apk
 *.obb
 *-data.zip
+SnowRain-data-*.zip
 program.json
+program-*.json
+original/
 __pycache__/
