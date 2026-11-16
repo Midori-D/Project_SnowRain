@@ -37,6 +37,13 @@ struct StoryPackageSmoke {
         let restored = try JSONDecoder().decode(StorySave.self, from: JSONEncoder().encode(saved))
         try check(restored.programID == package.id, "The restored save uses the wrong scenario.")
         try check(restored.growth == stats, "Save did not restore growth stats.")
+        let newLayout = try StoryPackage(url: fixtures.appendingPathComponent("new-layout.zip"))
+        let migrated = newLayout.migrating(restored, from: package)
+        try check(newLayout.id != package.id && migrated?.programID == newLayout.id,
+                  "A visual-only update should migrate the save to the new data.")
+        try check(migrated?.beatID == "bridge" && migrated?.growth == stats, "Migration changed progress.")
+        let newStory = try StoryPackage(url: fixtures.appendingPathComponent("new-story.zip"))
+        try check(newStory.migrating(restored, from: package) == nil, "Migration accepted different branch targets.")
         try check(
             story.beats[restored.beatID]?.text == "You cross the bridge.",
             "Save did not restore the selected branch."

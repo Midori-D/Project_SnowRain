@@ -93,6 +93,12 @@ struct StoryPackage {
     let program: StoryProgram
     let id: String
 
+    func migrating(_ save: StorySave, from previous: StoryPackage) -> StorySave? {
+        guard save.programID == previous.id, program.beats[save.beatID] != nil,
+              program.hasSameProgress(as: previous.program) else { return nil }
+        return StorySave(programID: id, beatID: save.beatID, growth: save.growth)
+    }
+
     init(url: URL) throws {
         let archive = try StoryArchive(url: url)
         let manifest = try JSONDecoder().decode(Manifest.self, from: archive.data("manifest.json"))

@@ -108,22 +108,32 @@ private struct GameView: View {
                     ProgressView("게임 데이터 가져오는 중")
                 } else {
                     if let library {
-                        Button("새 게임") { start(at: library.package.program.start) }
-                            .buttonStyle(.borderedProminent)
-                        if let resumeSave {
-                            Button("이어하기") {
+                        HStack(spacing: 16) {
+                            titleButton("새로하기", library: library, sourceX: 11) {
+                                start(at: library.package.program.start)
+                            }
+                            titleButton("불러오기", library: library, sourceX: 102) {
+                                guard let resumeSave else { return }
                                 growth = resumeSave.growth ?? GrowthStats()
                                 go(to: resumeSave.beatID, resuming: true)
                             }
-                                .buttonStyle(.bordered)
+                            .disabled(resumeSave == nil)
+                            .opacity(resumeSave == nil ? 0.42 : 1)
                         }
-                        if library.package.program.firstActivity != nil {
-                            Button("첫 평일 메뉴 테스트") { confirmingActivityJump = true }
-                                .buttonStyle(.bordered)
+                        HStack(spacing: 12) {
+                            if library.package.program.firstActivity != nil {
+                                Button("첫 평일 메뉴 테스트") { confirmingActivityJump = true }
+                            }
+                            Button("게임 데이터 변경") { pickingArchive = true }
                         }
-                    }
-                    Button(library == nil ? "게임 데이터 가져오기" : "게임 데이터 변경") { pickingArchive = true }
+                        .font(.footnote)
                         .buttonStyle(.bordered)
+                        .padding(8)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    } else {
+                        Button("게임 데이터 가져오기") { pickingArchive = true }
+                            .buttonStyle(.borderedProminent)
+                    }
                 }
             }
             .padding(24)
@@ -131,6 +141,21 @@ private struct GameView: View {
         .overlay(alignment: .topTrailing) {
             if library != nil { soundButton.padding(12) }
         }
+    }
+
+    private func titleButton(_ title: String, library: GameLibrary, sourceX: CGFloat,
+                             action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            if let artwork = library.image("assets/title1.png", croppedTo: CGRect(x: sourceX, y: 17, width: 75, height: 74)) {
+                Image(uiImage: artwork).resizable().scaledToFit().frame(width: 75, height: 74)
+            } else {
+                Text(title)
+                    .frame(width: 75, height: 74)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 
     private func playView(library: GameLibrary, beat: StoryProgram.Beat, size: CGSize) -> some View {
@@ -157,8 +182,10 @@ private struct GameView: View {
                     }
                     ForEach(Array((beat.layers ?? []).enumerated()), id: \.offset) { _, layer in
                         if let image = library.image(layer: layer) {
-                            let layerWidth = layer.width.map { CGFloat($0) } ?? image.size.width
-                            let layerHeight = layer.height.map { CGFloat($0) } ?? image.size.height
+                            let layerWidth = layer.width.map { CGFloat($0) }
+                                ?? image.cgImage.map { CGFloat($0.width) } ?? image.size.width
+                            let layerHeight = layer.height.map { CGFloat($0) }
+                                ?? image.cgImage.map { CGFloat($0.height) } ?? image.size.height
                             Image(uiImage: image)
                                 .resizable()
                                 .frame(width: layerWidth * scale, height: layerHeight * scale)
@@ -272,12 +299,19 @@ private struct GameView: View {
 
     private func importArchive(_ url: URL) {
         importing = true
+        let previous = library?.package
+        let previousSave = resumeSave
         Task {
             defer { importing = false }
             do {
                 let package = try await Task.detached(priority: .userInitiated) {
                     try LocalArchive.install(from: url)
                 }.value
+                if let previous, let previousSave,
+                   let updated = package.migrating(previousSave, from: previous),
+                   let data = try? JSONEncoder().encode(updated) {
+                    saved = data
+                }
                 audio.reset()
                 library = GameLibrary(package: package)
                 beatID = nil
@@ -307,13 +341,15 @@ private final class GameLibrary {
     }
 
     func image(layer: StoryProgram.Layer) -> UIImage? {
-        guard let source = image(layer.image) else { return nil }
         guard let x = layer.sourceX, let y = layer.sourceY,
-              let width = layer.sourceWidth, let height = layer.sourceHeight else { return source }
-        let key = "\(layer.image):\(x),\(y),\(width),\(height)" as NSString
+              let width = layer.sourceWidth, let height = layer.sourceHeight else { return image(layer.image) }
+        return image(layer.image, croppedTo: CGRect(x: x, y: y, width: width, height: height))
+    }
+
+    func image(_ path: String, croppedTo rect: CGRect) -> UIImage? {
+        let key = "\(path):\(rect)" as NSString
         if let cached = images.object(forKey: key) { return cached }
-        let rect = CGRect(x: x, y: y, width: width, height: height)
-        guard let cgImage = source.cgImage, rect.width > 0, rect.height > 0,
+        guard let cgImage = image(path)?.cgImage, rect.width > 0, rect.height > 0,
               CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height).contains(rect),
               let cropped = cgImage.cropping(to: rect) else { return nil }
         let image = UIImage(cgImage: cropped)

@@ -7,14 +7,16 @@
 1. 저장소의 **Actions → Build private iOS IPA**에서 성공한 실행을 엽니다.
 2. **Artifacts → SnowRainNative-unsigned**를 내려받고 압축을 풉니다. 안의 IPA를 SideStore로 서명해 설치합니다.
 3. 아래 과정으로 만든 **SnowRain-data.zip**을 아이폰의 파일 앱에 둡니다. 스노우레인 앱에서 **게임 데이터 가져오기**를 눌러 ZIP 자체를 선택합니다.
-4. **새 게임**으로 시작합니다. 활동 메뉴만 먼저 확인하고 싶다면 타이틀에서 **첫 평일 메뉴 테스트**를 선택합니다. 이 기능은 자동 저장 위치를 첫 평일 메뉴로 옮깁니다.
+4. **새로하기**로 시작하거나 **불러오기**로 자동 저장한 장면을 엽니다. 활동 메뉴만 먼저 확인하고 싶다면 타이틀에서 **첫 평일 메뉴 테스트**를 선택합니다. 이 기능은 자동 저장 위치를 첫 평일 메뉴로 옮깁니다.
+
+0.2.0에서 업데이트할 때는 앱을 덮어 설치하고 **게임 데이터 변경**에서 새 ZIP을 선택합니다. 시나리오 연결이 같은 경우 기존 장면과 능력치를 이어받습니다.
 
 ## Windows에서 데이터 준비하기
 
 Python 3.11 이상과 한국어 iOS판 1.4의 로컬 IPA가 필요합니다. PowerShell에서 저장소 루트를 연 상태로 실행합니다.
 
 ```powershell
-$original = 'C:\Users\Midori\Desktop\Midori_Server\Snowrain Project\original\SnowRain 1.4.ipa'
+$original = 'C:\path\to\original\SnowRain 1.4.ipa'
 python Tools/compile_opening.py "$original" --output program.json
 python Tools/prepare_data.py "$original" --program program.json --output SnowRain-data.zip
 ```
@@ -23,6 +25,6 @@ python Tools/prepare_data.py "$original" --program program.json --output SnowRai
 
 ## 재현 범위
 
-- 원본 스크립트에서 장면 이미지, 캐릭터, 음악과 효과음, 대사, 날짜를 읽습니다. 장면 전환과 인물 배치, 일부 휴대폰 화면은 원본 명령에서 복원한 근사치입니다.
+- 원본 스크립트에서 장면 이미지, 캐릭터, 음악과 효과음, 대사, 날짜를 읽습니다. 타이틀의 새로하기·불러오기는 원본 버튼 이미지를 씁니다. 인물이 등장하는 장면에는 원본의 옷, 얼굴, 표정 좌표를 적용합니다. 장면 전환과 일부 휴대폰 화면은 원본 명령에서 복원한 근사치입니다.
 - 첫 활동 메뉴에서 성장과 휴식을 실행할 수 있습니다. 성장에 따른 능력치 변화는 원본 확률표를 적용합니다. 인벤토리와 모바일은 첫 화면을 열고 돌아올 수 있습니다. 무작위 이벤트, 소지품 사용, 모바일 조작과 이후 루트 및 엔딩은 후속 단계입니다.
 - 자동 저장은 이 앱의 장면 ID를 사용합니다. 구형 앱의 저장 파일은 이 앱에서 불러올 수 없습니다.

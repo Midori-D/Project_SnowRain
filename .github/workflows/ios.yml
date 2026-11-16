@@ -14,6 +14,7 @@ jobs:
       - name: Test scene program and archive reader
         run: |
           set -euo pipefail
+          python3 -m unittest discover -s Tests -p 'test_*.py'
           python3 Tests/make_story_fixtures.py "$RUNNER_TEMP/story-fixtures"
           swiftc Sources/Story*.swift Tests/StoryPackageSmoke.swift -o "$RUNNER_TEMP/story-smoke"
           "$RUNNER_TEMP/story-smoke" "$RUNNER_TEMP/story-fixtures"

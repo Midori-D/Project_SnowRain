@@ -9,6 +9,7 @@ import sys
 import zipfile
 
 from first_day import first_day
+from portraits import character_layers
 from prepare_data import APP_PREFIX
 from scene_script import scene_steps
 
@@ -26,9 +27,6 @@ SPEAKERS = (
     "순덕", "승훈", "엄마", "방송", "취객", "의사", "학생", "학생회",
     "선생님", "???", "여학생", "관장", "주임", "기현",
 )
-BASE_FACES = (1, 1, 2, 2, 3, 17, 4, 5, 6, 7, 7, 8, 9, 10, 11, 12, 12, 13, 13, 14, 15)
-
-
 def commands(data, name):
     record_start = 0
     for record in data.split(b"\r\n"):
@@ -56,7 +54,7 @@ def commands(data, name):
 class Character:
     actor: int
     expression: int
-    outfit: int = 1
+    outfit: int
 
 
 @dataclass
@@ -68,6 +66,7 @@ class Stage:
     speaker: int | None = None
     speech_mode: int = 1
     sprites: dict = field(default_factory=dict)
+    outfits: dict = field(default_factory=dict)
     scene_images: dict = field(default_factory=dict)
     scene_order: list = field(default_factory=list)
 
@@ -109,38 +108,7 @@ class OpeningCompiler:
         return None
 
     def character_layers(self):
-        layers = []
-        slots = self.stage.sprites
-        for slot, character in sorted(slots.items()):
-            actor, outfit, expression = character.actor, character.outfit, character.expression
-            metadata = f"character_{actor}_{outfit}"
-            if not self.exists(metadata):
-                metadata = f"character_{actor}_0"
-            if not self.exists(metadata):
-                continue
-            dx, dy, _, _, _, _, ex, ey, _ = struct.unpack_from(">9h", self.read(metadata))
-            anchor_x = (100 if slot == 0 else 260) if len(slots) > 1 else 180
-            # The 336 px scene is the story viewport. The native text panel
-            # occupies separate space under it, so the anchor is adapted here.
-            anchor_y = 230
-            body = f"character_{actor}_Cloth_{outfit}.png"
-            if not self.exists(body):
-                body = f"character_{actor}_Cloth_1.png"
-            if 0 <= actor < len(BASE_FACES):
-                base = f"character_bface_{BASE_FACES[actor]}.png"
-                if self.exists(base):
-                    width, height = self.size(base)
-                    head_x = anchor_x - width // 2
-                    head_y = anchor_y + dy - height + 22
-                    layers.append(self.layer(base, head_x, head_y))
-                    face = f"character_face_{actor}_{expression}.png"
-                    if self.exists(face):
-                        face_width, _ = self.size(face)
-                        layers.append(self.layer(face, anchor_x - face_width // 2 + ex // 4, head_y + 35 + ey // 4))
-            cloth = self.layer(body, anchor_x + dx, anchor_y + dy)
-            if cloth:
-                layers.append(cloth)
-        return layers
+        return character_layers(self, self.stage.sprites)
 
     def snapshot(self):
         stage = self.stage
@@ -224,11 +192,10 @@ class OpeningCompiler:
                 if actor == 255:
                     stage.sprites.pop(slot, None)
                 else:
-                    old = stage.sprites.get(slot)
-                    outfit = old.outfit if old is not None and old.actor == actor else 1
-                    stage.sprites[slot] = Character(actor, expression, outfit)
+                    stage.sprites[slot] = Character(actor, expression, stage.outfits.get(slot, -1))
             elif opcode in (6, 9):
                 slot = 0 if opcode == 6 else 1
+                stage.outfits[slot] = values[0]
                 if slot in stage.sprites:
                     stage.sprites[slot].outfit = values[0]
             elif opcode == 11:
@@ -282,6 +249,7 @@ class OpeningCompiler:
         self.beats.update(first_day("assets/Bg_1.png", [], weekday_music, script7))
         program = {
             "version": 1, "start": start, "title": "assets/titlebg.png", "firstActivity": "weekday",
+            "titleMusic": "assets/sound_018.mp3",
             "canvasWidth": 360, "canvasHeight": 530, "beats": self.beats,
         }
         self.check_assets(program)
@@ -301,8 +269,9 @@ class OpeningCompiler:
                 width, height = self.size(layer["image"].removeprefix("assets/"))
                 if layer["sourceX"] + layer["sourceWidth"] > width or layer["sourceY"] + layer["sourceHeight"] > height:
                     raise ValueError(f"{key} requests invalid image region in {layer['image']}.")
-        if not self.exists(program["title"].removeprefix("assets/")):
-            raise ValueError("The title image is missing.")
+        for field in ("title", "titleMusic"):
+            if not self.exists(program[field].removeprefix("assets/")):
+                raise ValueError(f"Missing title resource {program[field]}.")
 
 
 def compile_opening(archive):

@@ -30,6 +30,15 @@ def main(destination):
         archive.writestr("program.json", json.dumps(program))
         program_header_offset = archive.getinfo("program.json").header_offset
 
+    program["beats"]["bridge"]["sceneHeight"] = 200
+    with zipfile.ZipFile(destination / "new-layout.zip", "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("manifest.json", json.dumps({"formatVersion": 1}))
+        archive.writestr("program.json", json.dumps(program))
+    program["beats"]["choose"]["choices"][1]["target"] = "garden"
+    with zipfile.ZipFile(destination / "new-story.zip", "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("manifest.json", json.dumps({"formatVersion": 1}))
+        archive.writestr("program.json", json.dumps(program))
+
     corrupt = bytearray(valid_path.read_bytes())
     name_length, extra_length = struct.unpack_from("<HH", corrupt, program_header_offset + 26)
     program_offset = program_header_offset + 30 + name_length + extra_length

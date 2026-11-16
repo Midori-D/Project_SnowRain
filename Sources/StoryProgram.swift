@@ -46,6 +46,18 @@ struct StoryProgram: Decodable {
     let canvasHeight: Double?
     let beats: [String: Beat]
 
+    func hasSameProgress(as other: StoryProgram) -> Bool {
+        guard start == other.start, beats.keys == other.beats.keys else { return false }
+        return beats.allSatisfy { id, beat in
+            guard let previous = other.beats[id] else { return false }
+            return beat.next == previous.next
+                && beat.choices?.map(\.target) == previous.choices?.map(\.target)
+                && beat.growthStat == previous.growthStat
+                && beat.text == previous.text
+                && (beat.end != nil) == (previous.end != nil)
+        }
+    }
+
     func validate(hasFile: (String) -> Bool) throws {
         guard version == 1, beats[start] != nil, !beats.isEmpty,
               firstActivity.map({ beats[$0] != nil }) ?? true,
